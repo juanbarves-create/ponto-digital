@@ -177,7 +177,7 @@ const CONFIG = {
   precoBase: 10,
   precoLonge: 15,
   motoristas: [
-    { id: 1, nome: 'Silvio Roberto', telefone: '5575998140238', status: 'online', veiculo: 'VW Voyage Prata' }
+    { id: 1, nome: 'Silvio Roberto', telefone: '5575998662821', status: 'online', veiculo: 'VW Voyage Prata' }
   ]
 };
 
@@ -310,45 +310,13 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
 
         voltarParaDestino() { this.mostrarTela('tela-destino'); },
 
-                confirmarPedido() {
-            // Pega o motorista atual
-            const m = CONFIG.motoristas[0]; 
-            // Forçamos a verificação ou simplesmente deixamos online para teste
-            const isOnline = (m.status === 'online');
+                confirmarPedido() {}
             
-            document.getElementById('card-motorista').innerHTML = `
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl text-blue-600 font-bold">
-                        ${m.nome.charAt(0)}
-                    </div>
-                    <div class="flex-1">
-                        <p class="font-bold text-xl text-gray-800">${m.nome}</p>
-                        <p class="text-md text-gray-500">${m.veiculo}</p>
-                        <div class="flex items-center mt-1">
-                            <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
-                            <span class="text-sm font-semibold ${isOnline ? 'text-green-600' : 'text-gray-500'}">
-                                ${isOnline ? 'Online agora' : 'Indisponível'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            `;
+            
 
             const btn = document.getElementById('btn-chamar');
             
-            // LÓGICA DE ATIVAÇÃO DO BOTÃO
-            if (isOnline) {
-                btn.disabled = false;
-                btn.style.opacity = "1";
-                btn.style.cursor = "pointer";
-                btn.classList.remove('opacity-50', 'cursor-not-allowed'); // Remove travas do Tailwind
-                btn.classList.add('bg-blue-600', 'text-white'); // Garante que a cor apareça
-                btn.innerHTML = 'ENVIAR SOLICITAÇÃO';
-            } else {
-                btn.disabled = true;
-                btn.style.opacity = "0.5";
-                btn.innerHTML = 'MOTORISTA INDISPONÍVEL';
-            }
+            
             
             this.mostrarTela('tela-motorista');
         },
