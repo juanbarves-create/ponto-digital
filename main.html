@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Ponto Digital">
+    <title>Ponto Digital - Maragogipe</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { brand: '#2563eb', 'brand-hover': '#1d4ed8', 'brand-light': '#eff6ff', surface: '#f8fafc', border: '#e2e8f0', text: '#0f172a', 'text-muted': '#64748b' } } }
+        }
+    </script>
+
+    <style>
+        :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --disabled: #94a3b8; }
+        body { font-size: 18px; background: #f8fafc; color: #0f172a; -webkit-tap-highlight-color: transparent; }
+        .btn { min-height: 65px; font-size: 18px; font-weight: 600; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
+        .btn-primary:hover { background: var(--brand-hover); }
+        .btn-secondary { background: #e2e8f0; color: #334155; }
+        .btn-disabled { background: var(--disabled); color: #f1f5f9; cursor: not-allowed; pointer-events: none; }
+        .btn-dest { min-height: 72px; border: 2px solid #e2e8f0; background: white; border-radius: 12px; font-weight: 500; }
+        .btn-dest.selecionado { border-color: var(--primary); background: var(--brand-light); color: var(--primary); }
+        .card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; }
+        .input { min-height: 65px; font-size: 18px; border: 2px solid #cbd5e1; border-radius: 12px; padding: 0 16px; width: 100%; }
+        .input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37,99,235,0.15); }
+        .tela { display: none; animation: subir 0.3s ease; }
+        .tela.ativa { display: flex; }
+        @keyframes subir { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .progresso { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .progresso-fill { height: 100%; background: var(--primary); transition: width 0.4s ease; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .status-dot.offline { background: var(--disabled); }
+        .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: girar 0.8s linear infinite; }
+        @keyframes girar { to { transform: rotate(360deg); } }
+        *:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- TELA 0: SPLASH -->
+    <div id="tela-splash" class="tela ativa flex-col items-center justify-center min-h-screen p-6 text-center">
+        <h1 class="text-3xl font-bold text-brand mb-2">Ponto Digital</h1>
+        <p class="text-lg text-text-muted">Maragogipe - BA</p>
+        <div class="spinner mt-8 mb-4"></div>
+        <p class="text-base text-text-muted">Carregando...</p>
+    </div>
+
+    <!-- TELA 1: NOME -->
+    <div id="tela-nome" class="tela flex-col min-h-screen p-6 justify-between">
+        <div class="progresso mb-8"><div class="progresso-fill" style="width: 20%"></div></div>
+        <div class="flex-1 flex flex-col justify-center">
+            <h1 class="text-3xl font-bold mb-3">Como podemos te chamar?</h1>
+            <p class="text-lg text-text-muted mb-6">Precisamos do seu nome para identificar o pedido.</p>
+            <input type="text" id="input-nome" class="input mb-4" placeholder="Ex: Maria, José, Ana..." autocomplete="name">
+        </div>
+        <button onclick="App.salvarNome()" class="btn btn-primary w-full">CONTINUAR</button>
+    </div>
+
+    <!-- TELA 2: LOCALIZAÇÃO -->
+    <div id="tela-local" class="tela flex-col min-h-screen p-6 justify-between">
+        <div class="progresso mb-8"><div class="progresso-fill" style="width: 40%"></div></div>
+        <div class="flex-1 flex flex-col justify-center">
+            <h1 class="text-3xl font-bold mb-3">Onde você está agora?</h1>
+            <p class="text-lg text-text-muted mb-6">Usaremos seu GPS ou um ponto próximo.</p>
+            
+            <div id="loading-gps" class="text-center mb-6">
+                <div class="spinner mx-auto mb-4"></div>
+                <p class="text-base text-text-muted">Buscando sua posição...</p>
+            </div>
+            
+            <div id="card-local" class="card mb-6 hidden text-center">
+                <p class="text-sm text-text-muted uppercase tracking-wide mb-1">Localização detectada</p>
+                <p id="texto-local" class="text-xl font-bold text-text">--</p>
+                <p id="texto-bairro" class="text-base text-text-muted mt-1">--</p>
+            </div>
+
+            <div id="erro-gps" class="hidden text-center mb-6">
+                <p class="text-lg text-text-muted mb-4">GPS indisponível. Digite seu endereço:</p>
+                <input type="text" id="input-endereco" class="input mb-4" placeholder="Ex: Perto da Praça da Matriz">
+                <button onclick="App.salvarEnderecoManual()" class="btn btn-secondary w-full">CONFIRMAR ENDEREÇO</button>
+            </div>
+        </div>
+        <button id="btn-prox-local" onclick="App.irParaDestino()" class="btn btn-primary w-full hidden">PRÓXIMO PASSO</button>
+    </div>
+
+    <!-- TELA 3: DESTINO -->
+    <div id="tela-destino" class="tela flex-col min-h-screen p-6 justify-between">
+        <div class="progresso mb-8"><div class="progresso-fill" style="width: 60%"></div></div>
+        <div class="flex-1 flex flex-col justify-center">
+            <h1 class="text-3xl font-bold mb-3">Para onde você quer ir?</h1>
+            <p class="text-lg text-text-muted mb-6">Toque em um local ou digite outro.</p>
+            
+            <div class="space-y-3 mb-6">
+                <button onclick="App.selecionarDestino('Hospital', this)" class="btn-dest w-full text-left px-5">Hospital</button>
+                <button onclick="App.selecionarDestino('UPA', this)" class="btn-dest w-full text-left px-5">UPA</button>
+                <button onclick="App.selecionarDestino('Rodoviária', this)" class="btn-dest w-full text-left px-5">Rodoviária</button>
+            </div>
+
+            <div class="border-t border-border pt-6">
+                <input type="text" id="input-destino-custom" class="input mb-3" placeholder="Ou digite outro lugar...">
+                <button onclick="App.selecionarDestinoCustom()" class="btn btn-secondary w-full">USAR ESTE LUGAR</button>
+            </div>
+        </div>
+        <button id="btn-prox-destino" onclick="App.irParaConfirmacao()" class="btn btn-primary w-full mt-4 hidden">VER PREÇO E CONFIRMAR</button>
+    </div>
+
+    <!-- TELA 4: CONFIRMAÇÃO -->
+    <div id="tela-confirmacao" class="tela flex-col min-h-screen p-6 justify-between">
+        <div class="progresso mb-8"><div class="progresso-fill" style="width: 80%"></div></div>
+        <div class="flex-1 flex flex-col justify-center">
+            <h1 class="text-3xl font-bold mb-4">Confirme os dados</h1>
+            <div class="card mb-3"><p class="text-sm text-text-muted uppercase">De onde sai</p><p id="resumo-origem" class="text-xl font-bold">--</p></div>
+            <div class="flex justify-center my-1"><span class="text-2xl text-text-muted">↓</span></div>
+            <div class="card mb-4"><p class="text-sm text-text-muted uppercase">Para onde vai</p><p id="resumo-destino" class="text-xl font-bold">--</p></div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-center">
+                    <div><p class="text-sm text-blue-800 uppercase">Valor da corrida</p><p id="resumo-preco" class="text-3xl font-bold text-blue-800">R$ 10,00</p></div>
+                    <div class="text-right"><p class="text-sm text-blue-800">Pagamento</p><p class="text-lg font-bold">Dinheiro / Pix</p></div>
+                </div>
+                <p class="text-sm text-blue-700 mt-2">Tempo estimado: 10 a 15 minutos</p>
+            </div>
+        </div>
+        <div class="space-y-3">
+            <button onclick="App.confirmarPedido()" class="btn w-full" style="background:#059669;color:white;box-shadow:0 4px 12px rgba(5,150,105,0.3)">CONFIRMAR PEDIDO</button>
+            <button onclick="App.voltarParaDestino()" class="btn btn-secondary w-full">VOLTAR E MUDAR</button>
+        </div>
+    </div>
+
+    <!-- TELA 5: MOTORISTA -->
+    <div id="tela-motorista" class="tela flex-col min-h-screen p-6 justify-between">
+        <div class="progresso mb-8"><div class="progresso-fill" style="width: 90%"></div></div>
+        <div class="flex-1 flex flex-col justify-center">
+            <h1 class="text-3xl font-bold mb-3">Quem vai te levar?</h1>
+            <div id="card-motorista" class="card mb-6"></div>
+            <div id="aviso-status" class="text-center hidden"><p class="text-base text-text-muted">Motorista indisponível no momento. Tente mais tarde.</p></div>
+        </div>
+        <div class="space-y-3">
+            <button id="btn-chamar" onclick="App.irParaSucesso()" class="btn btn-primary w-full">ENVIAR SOLICITAÇÃO</button>
+            <button onclick="App.voltarParaConfirmacao()" class="btn btn-secondary w-full">VOLTAR</button>
+        </div>
+    </div>
+
+    <!-- TELA 6: SUCESSO -->
+    <div id="tela-sucesso" class="tela flex-col min-h-screen p-6 justify-between items-center text-center">
+        <div class="progresso mb-8"><div class="progresso-fill" style="width: 100%"></div></div>
+        <div class="flex-1 flex flex-col justify-center items-center">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4"><span class="text-3xl text-green-600">✓</span></div>
+            <h1 class="text-3xl font-bold text-green-700 mb-2">Solicitação Enviada</h1>
+            <p class="text-lg text-text-muted mb-8 max-w-sm">Clique abaixo para enviar a mensagem automática ao motorista.</p>
+            <div class="card w-full max-w-sm text-left mb-8 space-y-2">
+                <p class="text-lg"><span class="font-bold">Origem:</span> <span id="final-origem">--</span></p>
+                <p class="text-lg"><span class="font-bold">Destino:</span> <span id="final-destino">--</span></p>
+                <p class="text-lg"><span class="font-bold">Valor:</span> <span id="final-preco">R$ 10,00</span></p>
+            </div>
+        </div>
+        <div class="w-full max-w-sm space-y-3">
+            <button onclick="App.enviarWhatsApp()" class="btn w-full" style="background:#25d366;color:white;box-shadow:0 4px 12px rgba(37,211,102,0.3)">ENVIAR PELO WHATSAPP</button>
+            <button onclick="App.reiniciar()" class="btn btn-secondary w-full">PEDIR OUTRA CORRIDA</button>
+        </div>
+        <p class="text-sm text-text-muted mt-6">Aguarde a resposta do motorista.</p>
+    </div>
+
+    <script>
+    // ==========================================
+    // 1. CONFIGURAÇÕES (ALTERE SOMENTE AQUI)
+    // ==========================================
+    const CONFIG = {
+        cidade: 'Maragogipe-BA',
+        whatsapp: '5575998140238', // Número do motorista/suporte
+        precoBase: 10,
+        precoLonge: 15,
+        motoristas: [
+            { id: 1, nome: 'Silvio Roberto', telefone: '5575998140238', status: 'online', veiculo: 'VW Voyage Prata' }
+        ]
+    };
+
+    const state = { nome: '', origem: '', destino: '', preco: '' };
+
+    // ==========================================
+    // 2. LÓGICA DO APP
+    // ==========================================
+    const App = {
+        mostrarTela(id) {
+            document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
+            const el = document.getElementById(id);
+            if(el) el.classList.add('ativa');
+            window.scrollTo(0, 0);
+        },
+
+        salvarNome() {
+            const nome = document.getElementById('input-nome').value.trim();
+            if (!nome) { document.getElementById('input-nome').style.borderColor = '#ef4444'; return; }
+            state.nome = nome;
+            this.mostrarTela('tela-local');
+            this.iniciarGPS();
+        },
+
+        iniciarGPS() {
+            const loading = document.getElementById('loading-gps');
+            const erro = document.getElementById('erro-gps');
+            const card = document.getElementById('card-local');
+            const btn = document.getElementById('btn-prox-local');
+            
+            loading.classList.remove('hidden'); erro.classList.add('hidden'); card.classList.add('hidden'); btn.classList.add('hidden');
+
+            if (!navigator.geolocation) return this.mostrarErroGPS();
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                try {
+                    // API Nominatim com zoom alto e detalhes
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=pt-BR&zoom=18&addressdetails=1`);
+                    const data = await res.json();
+                    const a = data.address || {};
+
+                    // Lógica robusta para cidades do interior
+                    let rua = a.road || a.highway || a.footway || a.pedway || '';
+                    let numero = a.house_number || '';
+                    let bairro = a.neighbourhood || a.suburb || a.quarter || a.village || a.hamlet || '';
+                    let cidade = a.town || a.city || a.municipality || a.county || CONFIG.cidade;
+
+                    let enderecoFormatado = [rua, numero].filter(Boolean).join(', ');
+                    if (!enderecoFormatado && bairro) enderecoFormatado = bairro;
+                    if (!enderecoFormatado && cidade) enderecoFormatado = `Região de ${cidade}`;
+                    
+                    // Fallback absoluto: usa o nome completo retornado pela API
+                    if (!enderecoFormatado && data.display_name) {
+                        enderecoFormatado = data.display_name.split(',').slice(0, 3).join(',').trim();
+                    }
+                    // Se ainda falhar, salva coordenadas exatas
+                    if (!enderecoFormatado) {
+                        enderecoFormatado = `Posição GPS: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+                    }
+
+                    state.origem = enderecoFormatado;
+                    loading.classList.add('hidden'); card.classList.remove('hidden');
+                    document.getElementById('texto-local').textContent = enderecoFormatado;
+                    document.getElementById('texto-bairro').textContent = cidade;
+                    btn.classList.remove('hidden');
+                } catch (err) {
+                    console.error('Erro no Nominatim:', err);
+                    this.mostrarErroGPS();
+                }
+            }, () => this.mostrarErroGPS(), { enableHighAccuracy: true, timeout: 12000 });
+        },
+
+        mostrarErroGPS() {
+            document.getElementById('loading-gps').classList.add('hidden');
+            document.getElementById('erro-gps').classList.remove('hidden');
+        },
+
+        salvarEnderecoManual() {
+            const end = document.getElementById('input-endereco').value.trim();
+            if (!end) return;
+            state.origem = end;
+            this.irParaDestino();
+        },
+
+        irParaDestino() { if (!state.origem) return; this.mostrarTela('tela-destino'); },
+
+        selecionarDestino(dest, el) {
+            document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
+            el.classList.add('selecionado');
+            state.destino = dest;
+            document.getElementById('btn-prox-destino').classList.remove('hidden');
+        },
+
+        selecionarDestinoCustom() {
+            const v = document.getElementById('input-destino-custom').value.trim();
+            if (!v) return;
+            state.destino = v;
+            document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
+            document.getElementById('btn-prox-destino').classList.remove('hidden');
+        },
+
+        irParaConfirmacao() {
+            if (!state.destino) return;
+            state.preco = (['Rodoviária'].includes(state.destino)) ? `R$ ${CONFIG.precoLonge},00` : `R$ ${CONFIG.precoBase},00`;
+            document.getElementById('resumo-origem').textContent = state.origem;
+            document.getElementById('resumo-destino').textContent = state.destino;
+            document.getElementById('resumo-preco').textContent = state.preco;
+            this.mostrarTela('tela-confirmacao');
+        },
+
+        voltarParaDestino() { this.mostrarTela('tela-destino'); },
+
+        confirmarPedido() {
+            const m = CONFIG.motoristas[0];
+            const isOnline = m.status === 'online';
+            
+            document.getElementById('card-motorista').innerHTML = `
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-xl">👤</div>
+                    <div class="flex-1">
+                        <p class="font-bold text-lg">${m.nome}</p>
+                        <p class="text-sm text-text-muted">${m.veiculo}</p>
+                        <div class="flex items-center mt-1">
+                            <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
+                            <span class="text-sm font-medium ${isOnline ? 'text-green-600' : 'text-slate-500'}">${isOnline ? 'Online agora' : 'Indisponível'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const btn = document.getElementById('btn-chamar');
+            const aviso = document.getElementById('aviso-status');
+            if (isOnline) {
+                btn.className = 'btn btn-primary w-full'; btn.disabled = false; btn.innerHTML = 'ENVIAR SOLICITAÇÃO';
+                aviso.classList.add('hidden');
+            } else {
+                btn.className = 'btn btn-disabled w-full'; btn.disabled = true; btn.innerHTML = 'MOTORISTA INDISPONÍVEL';
+                aviso.classList.remove('hidden');
+            }
+            this.mostrarTela('tela-motorista');
+        },
+
+        voltarParaConfirmacao() { this.mostrarTela('tela-confirmacao'); },
+        irParaSucesso() {
+            document.getElementById('final-origem').textContent = state.origem;
+            document.getElementById('final-destino').textContent = state.destino;
+            document.getElementById('final-preco').textContent = state.preco;
+            this.mostrarTela('tela-sucesso');
+        },
+
+        enviarWhatsApp() {
+            const msg = `Olá, sou ${state.nome}. Estou na ${state.origem} e quero ir para ${state.destino}. Pode me buscar?`;
+            window.open(`https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+        },
+
+        abrirAjuda() { document.getElementById('modal-ajuda').classList.remove('hidden'); },
+        fecharAjuda() { document.getElementById('modal-ajuda').classList.add('hidden'); },
+        
+        reiniciar() {
+            Object.assign(state, { nome: '', origem: '', destino: '', preco: '' });
+            document.querySelectorAll('input').forEach(i => i.value = '');
+            document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
+            document.getElementById('btn-prox-destino').classList.add('hidden');
+            document.getElementById('btn-prox-local').classList.add('hidden');
+            this.mostrarTela('tela-nome');
+        }
+    };
+
+   // ==========================================
+// 3. INICIALIZAÇÃO SEGURA + PWA (CORRIGIDO)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    // Manifesto válido via data URI (Chrome exige JSON real, não blob)
+    const manifestJSON = JSON.stringify({
+        name: "Ponto Digital - Maragogipe",
+        short_name: "Ponto Digital",
+        start_url: ".",
+        display: "standalone",
+        background_color: "#f8fafc",
+        theme_color: "#0f172a",
+        {
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
+
+    
+    // Cria e injeta o manifesto
+    const manifestBlob = new Blob([manifestJSON], { type: 'application/json' });
+    const manifestURL = URL.createObjectURL(manifestBlob);
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestURL;
+    document.head.appendChild(link);
+
+    // Service Worker inline (cache mínimo)
+    if ('serviceWorker' in navigator) {
+        const swCode = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => e.waitUntil(self.clients.claim())); self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));`;
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(console.warn);
+    }
+
+    // Captura evento de instalação e mostra aviso nativo
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        // Se quiser um botão manual no futuro, pode usar: deferredPrompt.prompt();
+    });
+
+    setTimeout(() => App.mostrarTela('tela-nome'), 1200);
+});
+
+document.getElementById('input-nome').addEventListener('keydown', e => { if(e.key==='Enter') App.salvarNome(); });
+document.getElementById('input-endereco').addEventListener('keydown', e => { if(e.key==='Enter') App.salvarEnderecoManual(); });
+document.getElementById('input-destino-custom').addEventListener('keydown', e => { if(e.key==='Enter') App.selecionarDestinoCustom(); });
+    </script>
+</body>
+</html>
