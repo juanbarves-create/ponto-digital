@@ -297,9 +297,9 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
             document.getElementById('btn-prox-destino').classList.remove('hidden');
         },
 
-        irParaConfirmacao() {
+                irParaConfirmacao() {
             if (!state.destino) return;
-            // Define preço baseado no destino (Lógica simples de distância)
+            // Define preço baseado no destino
             state.preco = (['Rodoviária'].includes(state.destino)) ? `R$ ${CONFIG.precoLonge},00` : `R$ ${CONFIG.precoBase},00`;
             
             document.getElementById('resumo-origem').textContent = state.origem;
@@ -311,44 +311,55 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
         voltarParaDestino() { this.mostrarTela('tela-destino'); },
 
         confirmarPedido() {
-            // Pega o primeiro motorista da lista (Juan ou Silvio conforme status)
+            // Seleciona o motorista (Juan ou Silvio)
             const m = CONFIG.motoristas[0]; 
             const isOnline = m.status === 'online';
             
+            // 1. Atualiza o card com os dados do motorista
             document.getElementById('card-motorista').innerHTML = `
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-xl">👤</div>
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl text-blue-600 font-bold">
+                        ${m.nome.charAt(0)}
+                    </div>
                     <div class="flex-1">
-                        <p class="font-bold text-lg">${m.nome}</p>
-                        <p class="text-sm text-gray-500">${m.veiculo}</p>
+                        <p class="font-bold text-xl text-gray-800">${m.nome}</p>
+                        <p class="text-md text-gray-500">${m.veiculo}</p>
                         <div class="flex items-center mt-1">
                             <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
-                            <span class="text-sm font-medium ${isOnline ? 'text-green-600' : 'text-slate-500'}">${isOnline ? 'Online agora' : 'Indisponível'}</span>
+                            <span class="text-sm font-semibold ${isOnline ? 'text-green-600' : 'text-gray-500'}">
+                                ${isOnline ? 'Disponível Agora' : 'Indisponível'}
+                            </span>
                         </div>
                     </div>
                 </div>
             `;
 
+            // 2. Configura o botão de chamada
             const btn = document.getElementById('btn-chamar');
             const aviso = document.getElementById('aviso-status');
             
             if (isOnline) {
-                btn.className = 'btn btn-primary w-full'; 
+                btn.className = 'btn-acao btn-primario w-full'; // Use as suas classes de estilo
                 btn.disabled = false; 
-                btn.innerHTML = 'ENVIAR SOLICITAÇÃO';
+                btn.innerHTML = 'CHAMAR NO WHATSAPP ➜';
+                // AQUI ESTÁ O SEGREDO: Vincula a função de envio ao clique
+                btn.onclick = () => this.enviarWhatsApp(); 
                 aviso.classList.add('hidden');
             } else {
-                btn.className = 'btn btn-disabled w-full cursor-not-allowed opacity-50'; 
+                btn.className = 'btn-acao bg-gray-300 text-gray-500 w-full cursor-not-allowed'; 
                 btn.disabled = true; 
-                btn.innerHTML = 'MOTORISTA INDISPONÍVEL';
+                btn.innerHTML = 'MOTORISTA OCUPADO';
+                btn.onclick = null;
                 aviso.classList.remove('hidden');
             }
+            
             this.mostrarTela('tela-motorista');
         },
 
         enviarWhatsApp() {
-            const msg = `Olá, sou ${state.nome}. Estou na ${state.origem} e quero ir para ${state.destino}. Pode me buscar?`;
-            window.open(`https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+            const texto = `Olá, sou ${state.nome}.%0A%0A📍 *Origem:* ${state.origem}%0A🏁 *Destino:* ${state.destino}%0A💰 *Valor:* ${state.preco}%0A%0A_Pode vir me buscar?_`;
+            const link = `https://wa.me/${CONFIG.whatsapp}?text=${texto}`;
+            window.open(link, '_blank');
         },
 
         reiniciar() {
