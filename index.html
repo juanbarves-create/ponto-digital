@@ -170,236 +170,186 @@
     </div>
 
     <script>
-    // ==========================================
-    // 1. CONFIGURAÇÕES (ALTERE SOMENTE AQUI)
-    // ==========================================
-    const CONFIG = {
-        cidade: 'Maragogipe-BA',
-        whatsapp: '5575998140238', // Número do motorista/suporte
-        precoBase: 10,
-        precoLonge: 15,
-        motoristas: [
-            { id: 1, nome: 'Silvio Roberto', telefone: '5575998140238', status: 'online', veiculo: 'VW Voyage Prata' }
-        ]
-    };
+   <script>
+// CONFIGURAÇÕES (edite só aqui)
+const CONFIG = {
+  cidade: 'Maragogipe-BA',
+  whatsapp: '5571999999999',
+  precoBase: 10,
+  precoLonge: 15,
+  motoristas: [{ id: 1, nome: 'Carlos Silva', status: 'online', veiculo: 'Fiat Argo' }]
+};
 
-    const state = { nome: '', origem: '', destino: '', preco: '' };
+const state = { nome: '', origem: '', destino: '', preco: '' };
 
-    // ==========================================
-    // 2. LÓGICA DO APP
-    // ==========================================
-    const App = {
-        mostrarTela(id) {
-            document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
-            const el = document.getElementById(id);
-            if(el) el.classList.add('ativa');
-            window.scrollTo(0, 0);
-        },
+const App = {
+  mostrarTela(id) {
+    document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('ativa');
+    window.scrollTo(0, 0);
+  },
 
-        salvarNome() {
-            const nome = document.getElementById('input-nome').value.trim();
-            if (!nome) { document.getElementById('input-nome').style.borderColor = '#ef4444'; return; }
-            state.nome = nome;
-            this.mostrarTela('tela-local');
-            this.iniciarGPS();
-        },
+  salvarNome() {
+    const nome = document.getElementById('input-nome').value.trim();
+    if (!nome) { document.getElementById('input-nome').style.borderColor = '#ef4444'; return; }
+    state.nome = nome;
+    this.mostrarTela('tela-local');
+    this.iniciarGPS();
+  },
 
-        iniciarGPS() {
-            const loading = document.getElementById('loading-gps');
-            const erro = document.getElementById('erro-gps');
-            const card = document.getElementById('card-local');
-            const btn = document.getElementById('btn-prox-local');
-            
-            loading.classList.remove('hidden'); erro.classList.add('hidden'); card.classList.add('hidden'); btn.classList.add('hidden');
-
-            if (!navigator.geolocation) return this.mostrarErroGPS();
-
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                try {
-                    // API Nominatim com zoom alto e detalhes
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=pt-BR&zoom=18&addressdetails=1`);
-                    const data = await res.json();
-                    const a = data.address || {};
-
-                    // Lógica robusta para cidades do interior
-                    let rua = a.road || a.highway || a.footway || a.pedway || '';
-                    let numero = a.house_number || '';
-                    let bairro = a.neighbourhood || a.suburb || a.quarter || a.village || a.hamlet || '';
-                    let cidade = a.town || a.city || a.municipality || a.county || CONFIG.cidade;
-
-                    let enderecoFormatado = [rua, numero].filter(Boolean).join(', ');
-                    if (!enderecoFormatado && bairro) enderecoFormatado = bairro;
-                    if (!enderecoFormatado && cidade) enderecoFormatado = `Região de ${cidade}`;
-                    
-                    // Fallback absoluto: usa o nome completo retornado pela API
-                    if (!enderecoFormatado && data.display_name) {
-                        enderecoFormatado = data.display_name.split(',').slice(0, 3).join(',').trim();
-                    }
-                    // Se ainda falhar, salva coordenadas exatas
-                    if (!enderecoFormatado) {
-                        enderecoFormatado = `Posição GPS: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
-                    }
-
-                    state.origem = enderecoFormatado;
-                    loading.classList.add('hidden'); card.classList.remove('hidden');
-                    document.getElementById('texto-local').textContent = enderecoFormatado;
-                    document.getElementById('texto-bairro').textContent = cidade;
-                    btn.classList.remove('hidden');
-                } catch (err) {
-                    console.error('Erro no Nominatim:', err);
-                    this.mostrarErroGPS();
-                }
-            }, () => this.mostrarErroGPS(), { enableHighAccuracy: true, timeout: 12000 });
-        },
-
-        mostrarErroGPS() {
-            document.getElementById('loading-gps').classList.add('hidden');
-            document.getElementById('erro-gps').classList.remove('hidden');
-        },
-
-        salvarEnderecoManual() {
-            const end = document.getElementById('input-endereco').value.trim();
-            if (!end) return;
-            state.origem = end;
-            this.irParaDestino();
-        },
-
-        irParaDestino() { if (!state.origem) return; this.mostrarTela('tela-destino'); },
-
-        selecionarDestino(dest, el) {
-            document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
-            el.classList.add('selecionado');
-            state.destino = dest;
-            document.getElementById('btn-prox-destino').classList.remove('hidden');
-        },
-
-        selecionarDestinoCustom() {
-            const v = document.getElementById('input-destino-custom').value.trim();
-            if (!v) return;
-            state.destino = v;
-            document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
-            document.getElementById('btn-prox-destino').classList.remove('hidden');
-        },
-
-        irParaConfirmacao() {
-            if (!state.destino) return;
-            state.preco = (['Rodoviária'].includes(state.destino)) ? `R$ ${CONFIG.precoLonge},00` : `R$ ${CONFIG.precoBase},00`;
-            document.getElementById('resumo-origem').textContent = state.origem;
-            document.getElementById('resumo-destino').textContent = state.destino;
-            document.getElementById('resumo-preco').textContent = state.preco;
-            this.mostrarTela('tela-confirmacao');
-        },
-
-        voltarParaDestino() { this.mostrarTela('tela-destino'); },
-
-        confirmarPedido() {
-            const m = CONFIG.motoristas[0];
-            const isOnline = m.status === 'online';
-            
-            document.getElementById('card-motorista').innerHTML = `
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-xl">👤</div>
-                    <div class="flex-1">
-                        <p class="font-bold text-lg">${m.nome}</p>
-                        <p class="text-sm text-text-muted">${m.veiculo}</p>
-                        <div class="flex items-center mt-1">
-                            <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
-                            <span class="text-sm font-medium ${isOnline ? 'text-green-600' : 'text-slate-500'}">${isOnline ? 'Online agora' : 'Indisponível'}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            const btn = document.getElementById('btn-chamar');
-            const aviso = document.getElementById('aviso-status');
-            if (isOnline) {
-                btn.className = 'btn btn-primary w-full'; btn.disabled = false; btn.innerHTML = 'ENVIAR SOLICITAÇÃO';
-                aviso.classList.add('hidden');
-            } else {
-                btn.className = 'btn btn-disabled w-full'; btn.disabled = true; btn.innerHTML = 'MOTORISTA INDISPONÍVEL';
-                aviso.classList.remove('hidden');
-            }
-            this.mostrarTela('tela-motorista');
-        },
-
-        voltarParaConfirmacao() { this.mostrarTela('tela-confirmacao'); },
-        irParaSucesso() {
-            document.getElementById('final-origem').textContent = state.origem;
-            document.getElementById('final-destino').textContent = state.destino;
-            document.getElementById('final-preco').textContent = state.preco;
-            this.mostrarTela('tela-sucesso');
-        },
-
-        enviarWhatsApp() {
-            const msg = `Olá, sou ${state.nome}. Estou na ${state.origem} e quero ir para ${state.destino}. Pode me buscar?`;
-            window.open(`https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
-        },
-
-        abrirAjuda() { document.getElementById('modal-ajuda').classList.remove('hidden'); },
-        fecharAjuda() { document.getElementById('modal-ajuda').classList.add('hidden'); },
-        
-        reiniciar() {
-            Object.assign(state, { nome: '', origem: '', destino: '', preco: '' });
-            document.querySelectorAll('input').forEach(i => i.value = '');
-            document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
-            document.getElementById('btn-prox-destino').classList.add('hidden');
-            document.getElementById('btn-prox-local').classList.add('hidden');
-            this.mostrarTela('tela-nome');
-        }
-    };
-
-   // ==========================================
-// 3. INICIALIZAÇÃO SEGURA + PWA (CORRIGIDO)
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    // Manifesto válido via data URI (Chrome exige JSON real, não blob)
-    const manifestJSON = JSON.stringify({
-        name: "Ponto Digital - Maragogipe",
-        short_name: "Ponto Digital",
-        start_url: ".",
-        display: "standalone",
-        background_color: "#f8fafc",
-        theme_color: "#0f172a",
-        {
-  "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    }
-  ]
-}
-
+  iniciarGPS() {
+    const loading = document.getElementById('loading-gps');
+    const erro = document.getElementById('erro-gps');
+    const card = document.getElementById('card-local');
+    const btn = document.getElementById('btn-prox-local');
     
-    // Cria e injeta o manifesto
-    const manifestBlob = new Blob([manifestJSON], { type: 'application/json' });
-    const manifestURL = URL.createObjectURL(manifestBlob);
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = manifestURL;
-    document.head.appendChild(link);
+    loading.classList.remove('hidden');
+    erro.classList.add('hidden');
+    card.classList.add('hidden');
+    btn.classList.add('hidden');
 
-    // Service Worker inline (cache mínimo)
-    if ('serviceWorker' in navigator) {
-        const swCode = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => e.waitUntil(self.clients.claim())); self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));`;
-        const swBlob = new Blob([swCode], { type: 'application/javascript' });
-        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(console.warn);
+    if (!navigator.geolocation) return this.mostrarErroGPS();
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=pt-BR&zoom=18`);
+        const data = await res.json();
+        const a = data.address || {};
+        let rua = a.road || a.highway || a.neighbourhood || a.suburb || data.display_name?.split(',')[0] || `Posição: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+        let cidade = a.town || a.city || a.municipality || CONFIG.cidade;
+        state.origem = rua;
+        loading.classList.add('hidden');
+        card.classList.remove('hidden');
+        document.getElementById('texto-local').textContent = rua;
+        document.getElementById('texto-bairro').textContent = cidade;
+        btn.classList.remove('hidden');
+      } catch { this.mostrarErroGPS(); }
+    }, () => this.mostrarErroGPS(), { enableHighAccuracy: true, timeout: 10000 });
+  },
+
+  mostrarErroGPS() {
+    document.getElementById('loading-gps').classList.add('hidden');
+    document.getElementById('erro-gps').classList.remove('hidden');
+  },
+
+  salvarEnderecoManual() {
+    const v = document.getElementById('input-endereco').value.trim();
+    if (!v) return;
+    state.origem = v;
+    this.irParaDestino();
+  },
+
+  irParaDestino() { if (!state.origem) return; this.mostrarTela('tela-destino'); },
+
+  selecionarDestino(dest, el) {
+    document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
+    el.classList.add('selecionado');
+    state.destino = dest;
+    document.getElementById('btn-prox-destino').classList.remove('hidden');
+  },
+
+  selecionarDestinoCustom() {
+    const v = document.getElementById('input-destino-custom').value.trim();
+    if (!v) return;
+    state.destino = v;
+    document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
+    document.getElementById('btn-prox-destino').classList.remove('hidden');
+  },
+
+  irParaConfirmacao() {
+    if (!state.destino) return;
+    state.preco = ['Rodoviária'].includes(state.destino) ? `R$ ${CONFIG.precoLonge},00` : `R$ ${CONFIG.precoBase},00`;
+    document.getElementById('resumo-origem').textContent = state.origem;
+    document.getElementById('resumo-destino').textContent = state.destino;
+    document.getElementById('resumo-preco').textContent = state.preco;
+    this.mostrarTela('tela-confirmacao');
+  },
+
+  voltarParaDestino() { this.mostrarTela('tela-destino'); },
+
+  confirmarPedido() {
+    const m = CONFIG.motoristas[0];
+    const on = m.status === 'online';
+    document.getElementById('card-motorista').innerHTML = `
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-xl">👤</div>
+        <div class="flex-1">
+          <p class="font-bold text-lg">${m.nome}</p>
+          <p class="text-sm text-text-muted">${m.veiculo}</p>
+          <div class="flex items-center mt-1">
+            <span class="status-dot ${on ? 'online' : 'offline'}"></span>
+            <span class="text-sm font-medium ${on ? 'text-green-600' : 'text-slate-500'}">${on ? 'Online agora' : 'Indisponível'}</span>
+          </div>
+        </div>
+      </div>`;
+    const btn = document.getElementById('btn-chamar');
+    const av = document.getElementById('aviso-status');
+    if (on) {
+      btn.className = 'btn btn-primary w-full';
+      btn.disabled = false;
+      btn.innerHTML = 'ENVIAR SOLICITAÇÃO';
+      av.classList.add('hidden');
+    } else {
+      btn.className = 'btn btn-disabled w-full';
+      btn.disabled = true;
+      btn.innerHTML = 'MOTORISTA INDISPONÍVEL';
+      av.classList.remove('hidden');
     }
+    this.mostrarTela('tela-motorista');
+  },
 
-    // Captura evento de instalação e mostra aviso nativo
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        // Se quiser um botão manual no futuro, pode usar: deferredPrompt.prompt();
-    });
+  voltarParaConfirmacao() { this.mostrarTela('tela-confirmacao'); },
 
-    setTimeout(() => App.mostrarTela('tela-nome'), 1200);
+  irParaSucesso() {
+    document.getElementById('final-origem').textContent = state.origem;
+    document.getElementById('final-destino').textContent = state.destino;
+    document.getElementById('final-preco').textContent = state.preco;
+    this.mostrarTela('tela-sucesso');
+  },
+
+  enviarWhatsApp() {
+    const msg = `Olá, sou ${state.nome}. Estou na ${state.origem} e quero ir para ${state.destino}. Pode me buscar?`;
+    window.open(`https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+  },
+
+  reiniciar() {
+    Object.assign(state, { nome: '', origem: '', destino: '', preco: '' });
+    document.querySelectorAll('input').forEach(i => i.value = '');
+    document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
+    document.getElementById('btn-prox-destino').classList.add('hidden');
+    document.getElementById('btn-prox-local').classList.add('hidden');
+    this.mostrarTela('tela-nome');
+  }
+};
+
+// INICIALIZAÇÃO
+document.addEventListener('DOMContentLoaded', () => {
+  // PWA Manifest
+  const manifest = JSON.stringify({
+    name: "Ponto Digital - Maragogipe",
+    short_name: "Ponto Digital",
+    start_url: ".",
+    display: "standalone",
+    background_color: "#f8fafc",
+    theme_color: "#0f172a",
+    icons: [{ src: "icon-192.png", sizes: "192x192", type: "image/png" }]
+  });
+  const blob = new Blob([manifest], { type: 'application/json' });
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(blob);
+  document.head.appendChild(link);
+
+  // Transição do Splash
+  setTimeout(() => App.mostrarTela('tela-nome'), 1500);
 });
 
-document.getElementById('input-nome').addEventListener('keydown', e => { if(e.key==='Enter') App.salvarNome(); });
-document.getElementById('input-endereco').addEventListener('keydown', e => { if(e.key==='Enter') App.salvarEnderecoManual(); });
-document.getElementById('input-destino-custom').addEventListener('keydown', e => { if(e.key==='Enter') App.selecionarDestinoCustom(); });
-    </script>
+// Enter nos inputs
+['input-nome', 'input-endereco', 'input-destino-custom'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if(id==='input-nome') App.salvarNome(); else if(id==='input-endereco') App.salvarEnderecoManual(); else App.selecionarDestinoCustom(); } });
+});
+</script>
 </body>
 </html>
