@@ -310,12 +310,12 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
 
         voltarParaDestino() { this.mostrarTela('tela-destino'); },
 
-        confirmarPedido() {
-            // Seleciona o motorista (Juan ou Silvio)
+                confirmarPedido() {
+            // Pega o motorista atual
             const m = CONFIG.motoristas[0]; 
-            const isOnline = m.status === 'online';
+            // Forçamos a verificação ou simplesmente deixamos online para teste
+            const isOnline = (m.status === 'online');
             
-            // 1. Atualiza o card com os dados do motorista
             document.getElementById('card-motorista').innerHTML = `
                 <div class="flex items-center gap-4">
                     <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl text-blue-600 font-bold">
@@ -327,39 +327,38 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
                         <div class="flex items-center mt-1">
                             <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
                             <span class="text-sm font-semibold ${isOnline ? 'text-green-600' : 'text-gray-500'}">
-                                ${isOnline ? 'Disponível Agora' : 'Indisponível'}
+                                ${isOnline ? 'Online agora' : 'Indisponível'}
                             </span>
                         </div>
                     </div>
                 </div>
             `;
 
-            // 2. Configura o botão de chamada
             const btn = document.getElementById('btn-chamar');
-            const aviso = document.getElementById('aviso-status');
             
+            // LÓGICA DE ATIVAÇÃO DO BOTÃO
             if (isOnline) {
-                btn.className = 'btn-acao btn-primario w-full'; // Use as suas classes de estilo
-                btn.disabled = false; 
-                btn.innerHTML = 'CHAMAR NO WHATSAPP ➜';
-                // AQUI ESTÁ O SEGREDO: Vincula a função de envio ao clique
-                btn.onclick = () => this.enviarWhatsApp(); 
-                aviso.classList.add('hidden');
+                btn.disabled = false;
+                btn.style.opacity = "1";
+                btn.style.cursor = "pointer";
+                btn.classList.remove('opacity-50', 'cursor-not-allowed'); // Remove travas do Tailwind
+                btn.classList.add('bg-blue-600', 'text-white'); // Garante que a cor apareça
+                btn.innerHTML = 'ENVIAR SOLICITAÇÃO';
             } else {
-                btn.className = 'btn-acao bg-gray-300 text-gray-500 w-full cursor-not-allowed'; 
-                btn.disabled = true; 
-                btn.innerHTML = 'MOTORISTA OCUPADO';
-                btn.onclick = null;
-                aviso.classList.remove('hidden');
+                btn.disabled = true;
+                btn.style.opacity = "0.5";
+                btn.innerHTML = 'MOTORISTA INDISPONÍVEL';
             }
             
             this.mostrarTela('tela-motorista');
         },
 
         enviarWhatsApp() {
-            const texto = `Olá, sou ${state.nome}.%0A%0A📍 *Origem:* ${state.origem}%0A🏁 *Destino:* ${state.destino}%0A💰 *Valor:* ${state.preco}%0A%0A_Pode vir me buscar?_`;
-            const link = `https://wa.me/${CONFIG.whatsapp}?text=${texto}`;
-            window.open(link, '_blank');
+            // Monta a mensagem com os dados salvos no 'state'
+            const textoMsg = `Olá! Meu nome é ${state.nome}.%0A%0A📍 *Origem:* ${state.origem}%0A🏁 *Destino:* ${state.destino}%0A💰 *Valor:* ${state.preco}%0A%0A_Pode me buscar?_`;
+            
+            // Abre o WhatsApp com o número que está no seu CONFIG
+            window.open(`https://wa.me/${CONFIG.whatsapp}?text=${textoMsg}`, '_blank');
         },
 
         reiniciar() {
