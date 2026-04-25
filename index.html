@@ -184,7 +184,7 @@ const CONFIG = {
 const state = { nome: '', origem: '', destino: '', preco: '' };
 
 // ==========================================
-    // 2. LÓGICA DO APP
+    // 2. LÓGICA DO APP (CORRIGIDA E OTIMIZADA)
     // ==========================================
     const App = {
         mostrarTela(id) {
@@ -195,8 +195,12 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
         },
 
         salvarNome() {
-            const nome = document.getElementById('input-nome').value.trim();
-            if (!nome) { document.getElementById('input-nome').style.borderColor = '#ef4444'; return; }
+            const nomeInput = document.getElementById('input-nome');
+            const nome = nomeInput.value.trim();
+            if (!nome) { 
+                nomeInput.style.borderColor = '#ef4444'; 
+                return; 
+            }
             state.nome = nome;
             this.mostrarTela('tela-local');
             this.iniciarGPS();
@@ -208,43 +212,54 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
             const card = document.getElementById('card-local');
             const btn = document.getElementById('btn-prox-local');
             
-            loading.classList.remove('hidden'); erro.classList.add('hidden'); card.classList.add('hidden'); btn.classList.add('hidden');
+            loading.classList.remove('hidden'); 
+            erro.classList.add('hidden'); 
+            card.classList.add('hidden'); 
+            btn.classList.add('hidden');
 
             if (!navigator.geolocation) return this.mostrarErroGPS();
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 try {
-                    // API Nominatim com zoom alto e detalhes
                     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=pt-BR&zoom=18&addressdetails=1`);
                     const data = await res.json();
                     const a = data.address || {};
 
-                    // Lógica robusta para cidades do interior
-                    let rua = a.road || a.highway || a.footway || a.pedway || '';
+                    // Lógica para Maragogipe: Prioriza Bairro e Rua
+                    let rua = a.road || a.highway || a.footway || '';
+                    let bairro = a.neighbourhood || a.suburb || a.village || a.hamlet || '';
+                    let cidade = a.town || a.city || a.municipality || 'Maragogipe';
                     let numero = a.house_number || '';
-                    let bairro = a.neighbourhood || a.suburb || a.quarter || a.village || a.hamlet || '';
-                    let cidade = a.town || a.city || a.municipality || a.county || CONFIG.cidade;
 
-                    let enderecoFormatado = [rua, numero].filter(Boolean).join(', ');
-                    if (!enderecoFormatado && bairro) enderecoFormatado = bairro;
-                    if (!enderecoFormatado && cidade) enderecoFormatado = `Região de ${cidade}`;
-                    
-                    // Fallback absoluto: usa o nome completo retornado pela API
-                    if (!enderecoFormatado && data.display_name) {
-                        enderecoFormatado = data.display_name.split(',').slice(0, 3).join(',').trim();
-                    }
-                    // Se ainda falhar, salva coordenadas exatas
-                    if (!enderecoFormatado) {
-                        enderecoFormatado = `Posição GPS: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+                    let enderecoFormatado = "";
+                    if (rua && bairro) {
+                        enderecoFormatado = `${rua}, ${bairro}`;
+                    } else if (bairro) {
+                        enderecoFormatado = bairro;
+                    } else if (data.display_name) {
+                        // Pega o início do nome caso não ache rua/bairro específicos
+                        enderecoFormatado = data.display_name.split(',').slice(0, 2).join(',').trim();
                     }
 
+                    // Atualiza o estado global
                     state.origem = enderecoFormatado;
-                    loading.classList.add('hidden'); card.classList.remove('hidden');
-                    document.getElementById('texto-local').textContent = enderecoFormatado;
+
+                    // Alimenta o input manual para o usuário conferir/editar
+                    const inputManual = document.getElementById('input-endereco');
+                    if (inputManual) {
+                        inputManual.value = enderecoFormatado;
+                    }
+
+                    // Atualiza os textos na tela
+                    document.getElementById('texto-local').textContent = enderecoFormatado || "Local não identificado";
                     document.getElementById('texto-bairro').textContent = cidade;
+
+                    loading.classList.add('hidden'); 
+                    card.classList.remove('hidden');
                     btn.classList.remove('hidden');
+
                 } catch (err) {
-                    console.error('Erro no Nominatim:', err);
+                    console.error('Erro ao buscar endereço:', err);
                     this.mostrarErroGPS();
                 }
             }, () => this.mostrarErroGPS(), { enableHighAccuracy: true, timeout: 12000 });
@@ -262,7 +277,10 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
             this.irParaDestino();
         },
 
-        irParaDestino() { if (!state.origem) return; this.mostrarTela('tela-destino'); },
+        irParaDestino() { 
+            if (!state.origem) return; 
+            this.mostrarTela('tela-destino'); 
+        },
 
         selecionarDestino(dest, el) {
             document.querySelectorAll('.btn-dest').forEach(b => b.classList.remove('selecionado'));
@@ -281,7 +299,9 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
 
         irParaConfirmacao() {
             if (!state.destino) return;
+            // Define preço baseado no destino (Lógica simples de distância)
             state.preco = (['Rodoviária'].includes(state.destino)) ? `R$ ${CONFIG.precoLonge},00` : `R$ ${CONFIG.precoBase},00`;
+            
             document.getElementById('resumo-origem').textContent = state.origem;
             document.getElementById('resumo-destino').textContent = state.destino;
             document.getElementById('resumo-preco').textContent = state.preco;
@@ -291,7 +311,8 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
         voltarParaDestino() { this.mostrarTela('tela-destino'); },
 
         confirmarPedido() {
-            const m = CONFIG.motoristas[0];
+            // Pega o primeiro motorista da lista (Juan ou Silvio conforme status)
+            const m = CONFIG.motoristas[0]; 
             const isOnline = m.status === 'online';
             
             document.getElementById('card-motorista').innerHTML = `
@@ -299,7 +320,7 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
                     <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-xl">👤</div>
                     <div class="flex-1">
                         <p class="font-bold text-lg">${m.nome}</p>
-                        <p class="text-sm text-text-muted">${m.veiculo}</p>
+                        <p class="text-sm text-gray-500">${m.veiculo}</p>
                         <div class="flex items-center mt-1">
                             <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
                             <span class="text-sm font-medium ${isOnline ? 'text-green-600' : 'text-slate-500'}">${isOnline ? 'Online agora' : 'Indisponível'}</span>
@@ -310,22 +331,19 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
 
             const btn = document.getElementById('btn-chamar');
             const aviso = document.getElementById('aviso-status');
+            
             if (isOnline) {
-                btn.className = 'btn btn-primary w-full'; btn.disabled = false; btn.innerHTML = 'ENVIAR SOLICITAÇÃO';
+                btn.className = 'btn btn-primary w-full'; 
+                btn.disabled = false; 
+                btn.innerHTML = 'ENVIAR SOLICITAÇÃO';
                 aviso.classList.add('hidden');
             } else {
-                btn.className = 'btn btn-disabled w-full'; btn.disabled = true; btn.innerHTML = 'MOTORISTA INDISPONÍVEL';
+                btn.className = 'btn btn-disabled w-full cursor-not-allowed opacity-50'; 
+                btn.disabled = true; 
+                btn.innerHTML = 'MOTORISTA INDISPONÍVEL';
                 aviso.classList.remove('hidden');
             }
             this.mostrarTela('tela-motorista');
-        },
-
-        voltarParaConfirmacao() { this.mostrarTela('tela-confirmacao'); },
-        irParaSucesso() {
-            document.getElementById('final-origem').textContent = state.origem;
-            document.getElementById('final-destino').textContent = state.destino;
-            document.getElementById('final-preco').textContent = state.preco;
-            this.mostrarTela('tela-sucesso');
         },
 
         enviarWhatsApp() {
@@ -333,9 +351,6 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
             window.open(`https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
         },
 
-        abrirAjuda() { document.getElementById('modal-ajuda').classList.remove('hidden'); },
-        fecharAjuda() { document.getElementById('modal-ajuda').classList.add('hidden'); },
-        
         reiniciar() {
             Object.assign(state, { nome: '', origem: '', destino: '', preco: '' });
             document.querySelectorAll('input').forEach(i => i.value = '');
@@ -345,7 +360,6 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
             this.mostrarTela('tela-nome');
         }
     };
-
     // ==========================================
     // 3. INICIALIZAÇÃO SEGURA + PWA
     // ==========================================
