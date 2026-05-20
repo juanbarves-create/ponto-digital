@@ -202,8 +202,7 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
             state.nome = nome;
             this.mostrarTela('tela-local');
         },
-        };
-
+        
         salvarEnderecoManual() {
             const end = document.getElementById('input-endereco').value.trim();
             if (!end) return;
