@@ -71,11 +71,6 @@
             <h1 class="text-3xl font-bold mb-3">Onde você está agora?</h1>
             <p class="text-lg text-text-muted mb-6">---</p>
             
-            <div id="loading-gps" class="text-center mb-6">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="text-base text-text-muted">---</p>
-            </div>
-            
             <div id="card-local" class="card mb-6 hidden text-center">
                 <p class="text-sm text-text-muted uppercase tracking-wide mb-1">---</p>
                 <p id="texto-local" class="text-xl font-bold text-text">--</p>
@@ -206,13 +201,8 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
             if (!nome) { document.getElementById('input-nome').style.borderColor = '#ef4444'; return; }
             state.nome = nome;
             this.mostrarTela('tela-local');
-            this.iniciarGPS();
         },
-
-        mostrarErroGPS() {
-            document.getElementById('loading-gps').classList.add('hidden');
-            document.getElementById('erro-gps').classList.remove('hidden');
-        },
+        };
 
         salvarEnderecoManual() {
             const end = document.getElementById('input-endereco').value.trim();
