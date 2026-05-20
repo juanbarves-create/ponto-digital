@@ -58,7 +58,7 @@
         <div class="progresso mb-8"><div class="progresso-fill" style="width: 20%"></div></div>
         <div class="flex-1 flex flex-col justify-center">
             <h1 class="text-3xl font-bold mb-3">Como podemos te chamar?</h1>
-            <p class="text-lg text-text-muted mb-6">Precisamos do seu nome para identificar o pedido.</p>
+            <p class="text-lg text-text-muted mb-6">Assim a gente te chama de um jeito carinhoso.</p>
             <input type="text" id="input-nome" class="input mb-4" placeholder="Ex: Maria, José, Ana..." autocomplete="name">
         </div>
         <button onclick="App.salvarNome()" class="btn btn-primary w-full">CONTINUAR</button>
@@ -69,21 +69,21 @@
         <div class="progresso mb-8"><div class="progresso-fill" style="width: 40%"></div></div>
         <div class="flex-1 flex flex-col justify-center">
             <h1 class="text-3xl font-bold mb-3">Onde você está agora?</h1>
-            <p class="text-lg text-text-muted mb-6">Usaremos seu GPS ou um ponto próximo.</p>
+            <p class="text-lg text-text-muted mb-6">---</p>
             
             <div id="loading-gps" class="text-center mb-6">
                 <div class="spinner mx-auto mb-4"></div>
-                <p class="text-base text-text-muted">Buscando sua posição...</p>
+                <p class="text-base text-text-muted">---</p>
             </div>
             
             <div id="card-local" class="card mb-6 hidden text-center">
-                <p class="text-sm text-text-muted uppercase tracking-wide mb-1">Localização detectada</p>
+                <p class="text-sm text-text-muted uppercase tracking-wide mb-1">---</p>
                 <p id="texto-local" class="text-xl font-bold text-text">--</p>
                 <p id="texto-bairro" class="text-base text-text-muted mt-1">--</p>
             </div>
 
             <div id="erro-gps" class="hidden text-center mb-6">
-                <p class="text-lg text-text-muted mb-4">GPS indisponível. Digite seu endereço:</p>
+                <p class="text-lg text-text-muted mb-4">Digite seu endereço:</p>
                 <input type="text" id="input-endereco" class="input mb-4" placeholder="Ex: Perto da Praça da Matriz">
                 <button onclick="App.salvarEnderecoManual()" class="btn btn-secondary w-full">CONFIRMAR ENDEREÇO</button>
             </div>
@@ -177,9 +177,16 @@ const CONFIG = {
   precoBase: 10,
   precoLonge: 15,
   motoristas: [
-    { id: 1, nome: 'Silvio Roberto', telefone: '5575998140238', status: 'online', veiculo: 'VW Voyage Prata' }
+    { id: 1, nome: 'Silvio Roberto', telefone: '5575998140238', status: 'offline', veiculo: 'VW Voyage Prata' },
+	{ id: 2, nome: 'Maria Souza', telefone: '5575988887777', status: 'online', veiculo: 'Fiat Uno Branco' }
   ]
+
 };
+
+// Após o DOM carregar, force a atualização da lista de motoristas
+document.addEventListener('DOMContentLoaded', () => {
+  renderMotoristas(); // ou a função que exibe os motoristas na tela
+});
 
 const state = { nome: '', origem: '', destino: '', preco: '' };
 
@@ -200,54 +207,6 @@ const state = { nome: '', origem: '', destino: '', preco: '' };
             state.nome = nome;
             this.mostrarTela('tela-local');
             this.iniciarGPS();
-        },
-
-        iniciarGPS() {
-            const loading = document.getElementById('loading-gps');
-            const erro = document.getElementById('erro-gps');
-            const card = document.getElementById('card-local');
-            const btn = document.getElementById('btn-prox-local');
-            
-            loading.classList.remove('hidden'); erro.classList.add('hidden'); card.classList.add('hidden'); btn.classList.add('hidden');
-
-            if (!navigator.geolocation) return this.mostrarErroGPS();
-
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                try {
-                    // API Nominatim com zoom alto e detalhes
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=pt-BR&zoom=18&addressdetails=1`);
-                    const data = await res.json();
-                    const a = data.address || {};
-
-                    // Lógica robusta para cidades do interior
-                    let rua = a.road || a.highway || a.footway || a.pedway || '';
-                    let numero = a.house_number || '';
-                    let bairro = a.neighbourhood || a.suburb || a.quarter || a.village || a.hamlet || '';
-                    let cidade = a.town || a.city || a.municipality || a.county || CONFIG.cidade;
-
-                    let enderecoFormatado = [rua, numero].filter(Boolean).join(', ');
-                    if (!enderecoFormatado && bairro) enderecoFormatado = bairro;
-                    if (!enderecoFormatado && cidade) enderecoFormatado = `Região de ${cidade}`;
-                    
-                    // Fallback absoluto: usa o nome completo retornado pela API
-                    if (!enderecoFormatado && data.display_name) {
-                        enderecoFormatado = data.display_name.split(',').slice(0, 3).join(',').trim();
-                    }
-                    // Se ainda falhar, salva coordenadas exatas
-                    if (!enderecoFormatado) {
-                        enderecoFormatado = `Posição GPS: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
-                    }
-
-                    state.origem = enderecoFormatado;
-                    loading.classList.add('hidden'); card.classList.remove('hidden');
-                    document.getElementById('texto-local').textContent = enderecoFormatado;
-                    document.getElementById('texto-bairro').textContent = cidade;
-                    btn.classList.remove('hidden');
-                } catch (err) {
-                    console.error('Erro no Nominatim:', err);
-                    this.mostrarErroGPS();
-                }
-            }, () => this.mostrarErroGPS(), { enableHighAccuracy: true, timeout: 12000 });
         },
 
         mostrarErroGPS() {
